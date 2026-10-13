@@ -18,6 +18,12 @@
       --wall: #1e293b;
       --visited: #bae6fd;
       --path: #fbbf24;
+      --player: #3b82f6;
+      --trail: #bbf7d0;
+      --mud: #d4a373;
+      --mud-dot: #8b5a2b;
+      --spike-bg: #fee2e2;
+      --spike: #b91c1c;
       --cell: 26px;
     }
 
@@ -114,6 +120,12 @@
       cursor: not-allowed;
     }
 
+    #helpBtn {
+      width: 2.2rem;
+      padding: 0.5rem 0;
+      border-radius: 50%;
+    }
+
     .speed {
       display: flex;
       align-items: center;
@@ -160,6 +172,17 @@
 
     #status { color: var(--text); font-weight: 500; }
 
+    #gameStats {
+      display: inline-flex;
+      gap: 0.9rem;
+      padding: 0.2rem 0.7rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+    }
+
+    #gameStats[hidden] { display: none; }
+
     #board {
       flex: 1;
       display: flex;
@@ -181,12 +204,15 @@
       touch-action: none;
     }
 
+    #grid.shake { animation: shake 0.35s ease-in-out; }
+
     .cell {
       width: var(--cell);
       height: var(--cell);
       border-right: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
       cursor: crosshair;
+      position: relative;
     }
 
     .cell.wall {
@@ -206,46 +232,56 @@
       animation: pathPop 0.45s ease-out;
     }
 
+    .cell.trail { background: var(--trail); border-color: #86efac; }
+
     .cell.instant { animation: none; }
+
+    /* Mud keeps its dotted texture under visited/path/trail colours. */
+    .cell.mud {
+      background-color: var(--mud);
+      background-image:
+        radial-gradient(circle at 30% 35%, var(--mud-dot) 11%, transparent 12%),
+        radial-gradient(circle at 70% 60%, var(--mud-dot) 9%, transparent 10%),
+        radial-gradient(circle at 40% 78%, var(--mud-dot) 7%, transparent 8%);
+    }
+
+    .cell.mud.visited { background-color: var(--visited); }
+    .cell.mud.path { background-color: var(--path); }
+    .cell.mud.trail { background-color: var(--trail); }
+
+    .cell.spike { background: var(--spike-bg); }
+
+    .cell.spike::after {
+      content: "▲";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(var(--cell) * 0.55);
+      color: var(--spike);
+    }
 
     .cell.start, .cell.end {
       cursor: grab;
       animation: none;
-      position: relative;
     }
 
     .cell.start { background: var(--start); border-color: var(--start); }
     .cell.end { background: var(--end); border-color: var(--end); }
 
-    .cell.start::after, .cell.end::after {
-      content: "";
-      position: absolute;
-      inset: 25%;
-      border-radius: 50%;
-      background: #fff;
-    }
-
-    .cell.trail { background: #bbf7d0; border-color: #86efac; }
-
     .cell.player {
-      background: #3b82f6;
-      border-color: #3b82f6;
-      position: relative;
+      background: var(--player);
+      border-color: var(--player);
       animation: pathPop 0.2s ease-out;
     }
 
-    .cell.player::after {
+    .cell.start::after, .cell.end::after, .cell.player::after {
       content: "";
       position: absolute;
       inset: 25%;
       border-radius: 50%;
       background: #fff;
-    }
-
-    #helpBtn {
-      width: 2.2rem;
-      padding: 0.5rem 0;
-      border-radius: 50%;
     }
 
     .overlay {
@@ -264,6 +300,8 @@
 
     .modal {
       width: min(480px, 100%);
+      max-height: 100%;
+      overflow-y: auto;
       padding: 2rem;
       background: var(--panel);
       border-radius: 16px;
@@ -271,18 +309,37 @@
       animation: pathPop 0.3s ease-out;
     }
 
+    .modal.wide { width: min(600px, 100%); }
+
     .modal h2 {
       font-size: 1.6rem;
       letter-spacing: -0.02em;
       margin-bottom: 0.4rem;
     }
 
+    .modal h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
     .modal .subtitle { color: var(--muted); margin-bottom: 1.25rem; }
 
-    .modal ol {
+    .modal ol, .modal ul {
       padding-left: 1.25rem;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       line-height: 1.7;
+      font-size: 0.95rem;
+    }
+
+    .modal ul { list-style: none; padding-left: 0; }
+
+    .modal li .swatch {
+      display: inline-block;
+      vertical-align: -2px;
+      margin-right: 0.3rem;
     }
 
     .modal kbd {
@@ -295,6 +352,39 @@
     }
 
     .modal .actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
+    .difficulty {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .difficulty input { position: absolute; opacity: 0; pointer-events: none; }
+
+    .difficulty span {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      height: 100%;
+      padding: 0.8rem;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--muted);
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .difficulty b { font-size: 1rem; color: var(--text); }
+    .difficulty span:hover { border-color: #c7d2fe; }
+
+    .difficulty input:checked + span {
+      border-color: var(--accent);
+      background: #eef2ff;
+    }
+
+    .difficulty input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     .win-stars { font-size: 2.2rem; text-align: center; margin: 0.5rem 0; }
 
@@ -323,16 +413,24 @@
     }
 
     @keyframes visit {
-      0% { transform: scale(0.3); background: #6366f1; border-radius: 50%; }
-      50% { background: #38bdf8; }
+      0% { transform: scale(0.3); background-color: #6366f1; border-radius: 50%; }
+      50% { background-color: #38bdf8; }
       75% { transform: scale(1.1); }
-      100% { transform: scale(1); background: var(--visited); }
+      100% { transform: scale(1); background-color: var(--visited); }
     }
 
     @keyframes pathPop {
       0% { transform: scale(0.5); }
       60% { transform: scale(1.2); }
       100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
     }
   </style>
 </head>
@@ -359,7 +457,7 @@
         <input id="speed" type="range" min="0" max="6" value="3">
         <output id="speedLabel">Normal</output>
       </label>
-      <button id="playBtn" class="primary">▶ Start Game</button>
+      <button id="playBtn" class="primary">▶ New Game</button>
       <button id="clearPathBtn">Clear Path</button>
       <button id="clearBtn">Clear Grid</button>
       <button id="helpBtn" title="How to play">?</button>
@@ -369,33 +467,53 @@
   <div class="infobar">
     <div class="legend">
       <span><i class="swatch" style="background: var(--start)"></i>Start</span>
-      <span><i class="swatch" style="background: var(--end)"></i>End</span>
+      <span><i class="swatch" style="background: var(--end)"></i>Goal</span>
+      <span><i class="swatch" style="background: var(--player)"></i>Player</span>
       <span><i class="swatch" style="background: var(--wall)"></i>Wall</span>
+      <span><i class="swatch" style="background: var(--mud)"></i>Mud</span>
+      <span><i class="swatch" style="background: var(--spike-bg); color: var(--spike); font-size: 10px; text-align: center; line-height: 12px; font-style: normal">▲</i>Spikes</span>
       <span><i class="swatch" style="background: var(--visited)"></i>Visited</span>
       <span><i class="swatch" style="background: var(--path)"></i>Shortest path</span>
     </div>
     <div class="stats">
       <span id="status">Click and drag to draw walls. Drag the green and red nodes to move them.</span>
-      <span id="gameStats" hidden>Moves: <b id="moves">0</b> &nbsp;·&nbsp; Time: <b id="time">0.0s</b></span>
+      <span id="gameStats" hidden>
+        <span><b id="gDifficulty"></b> · Level <b id="gLevel"></b></span>
+        <span id="gLives"></span>
+        <span>Moves: <b id="moves">0</b></span>
+        <span>Time: <b id="time">0.0s</b></span>
+      </span>
       <span>Visited: <b id="visitedCount">–</b></span>
-      <span>Path length: <b id="pathLength">–</b></span>
+      <span>Path cost: <b id="pathLength">–</b></span>
     </div>
   </div>
 
   <div id="board"><div id="grid"></div></div>
 
   <div id="introModal" class="overlay">
-    <div class="modal">
+    <div class="modal wide">
       <h2>🧭 Pathfinding &amp; Maze Visualizer</h2>
-      <p class="subtitle">Escape the maze, then see how A* and Dijkstra would have done it.</p>
+      <p class="subtitle">Escape 5 increasingly tricky mazes, then see how A* and Dijkstra would have done it.</p>
+      <h3>How to play</h3>
       <ol>
-        <li>Click <b>Start Game</b> to generate a random maze.</li>
-        <li>Move the <b style="color: #3b82f6">blue player</b> with <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, or click a cell next to you.</li>
-        <li><b>Reach the <span style="color: var(--end)">red goal</span> to win!</b> Use as few moves as the shortest path for 3 stars.</li>
-        <li>Want to experiment instead? Use <b>Explore</b> mode to draw walls, generate mazes and animate the search algorithms.</li>
+        <li>Choose a difficulty below and click <b>Start Game</b>.</li>
+        <li>Move the <b style="color: var(--player)">blue player</b> with <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, or click a cell next to you.</li>
+        <li>Reach the <b style="color: var(--end)">red goal</b> to clear the level. <b>Clear all 5 levels to win!</b></li>
+        <li>Fewer moves earn more stars. Match the shortest path for ⭐⭐⭐.</li>
       </ol>
+      <h3>Obstacles</h3>
+      <ul>
+        <li><i class="swatch" style="background: var(--mud)"></i><b>Mud</b>: you can wade through, but each step costs 3 moves.</li>
+        <li><i class="swatch" style="background: var(--spike-bg); color: var(--spike); font-size: 10px; text-align: center; line-height: 12px; font-style: normal">▲</i><b>Spikes</b>: step on them and you lose a ❤️ and go back to the start. Lose every heart and it's game over.</li>
+      </ul>
+      <h3>Difficulty</h3>
+      <div class="difficulty" role="radiogroup" aria-label="Difficulty">
+        <label><input type="radio" name="difficulty" value="easy" checked><span><b>🌱 Easy</b>5 lives · small mazes · few obstacles</span></label>
+        <label><input type="radio" name="difficulty" value="medium"><span><b>🔥 Medium</b>3 lives · bigger mazes · more spikes</span></label>
+        <label><input type="radio" name="difficulty" value="hard"><span><b>💀 Hard</b>2 lives · huge mazes · time limit ⏱</span></label>
+      </div>
       <div class="actions">
-        <button id="exploreBtn">Explore</button>
+        <button id="exploreBtn">Explore Freely</button>
         <button id="introStartBtn" class="primary">▶ Start Game</button>
       </div>
     </div>
@@ -403,61 +521,108 @@
 
   <div id="winModal" class="overlay" hidden>
     <div class="modal">
-      <h2>🎉 You escaped the maze!</h2>
+      <h2 id="winTitle"></h2>
       <div class="win-stars" id="winStars"></div>
       <p class="subtitle" id="winMessage"></p>
       <div class="win-stats">
         <div><b id="winMoves"></b>Your moves</div>
-        <div><b id="winOptimal"></b>Shortest path</div>
+        <div><b id="winOptimal"></b>Best possible</div>
         <div><b id="winTime"></b>Time</div>
       </div>
       <div class="actions">
         <button id="showPathBtn">Show Optimal Path</button>
-        <button id="againBtn" class="primary">Play Again</button>
+        <button id="nextBtn" class="primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loseModal" class="overlay" hidden>
+    <div class="modal">
+      <h2 id="loseTitle"></h2>
+      <p class="subtitle" id="loseMessage"></p>
+      <div class="actions">
+        <button id="menuBtn">Main Menu</button>
+        <button id="retryBtn" class="primary">↻ Retry Level</button>
       </div>
     </div>
   </div>
 
   <script>
-    const CELL = 26;
+    const DEFAULT_CELL = 26;
     const SPEEDS = [0.25, 0.5, 1, 3, 8, 20, 60]; // steps per animation frame
     const SPEED_LABELS = ["Slowest", "Slower", "Slow", "Normal", "Fast", "Faster", "Fastest"];
+    const GAME_MAZE_SPEED = 25;
     const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     const DIRS2 = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+
+    const NORMAL = 0, MUD = 1, SPIKE = 2;
+    const MUD_COST = 3;
+    const LEVELS = 5;
+
+    // Per-level arrays are indexed by level - 1. Smaller cells mean bigger mazes.
+    // loops: share of inner walls knocked out so spikes can block one route but never all of them.
+    const DIFFICULTIES = {
+      easy: {
+        label: "🌱 Easy", lives: 5, loops: 0.10, timePerStep: null,
+        cells: [44, 40, 36, 32, 30],
+        mud: [0, 0.03, 0.04, 0.05, 0.06],
+        spikes: [0, 1, 2, 3, 4],
+      },
+      medium: {
+        label: "🔥 Medium", lives: 3, loops: 0.08, timePerStep: null,
+        cells: [38, 34, 30, 28, 26],
+        mud: [0.04, 0.05, 0.06, 0.07, 0.08],
+        spikes: [2, 4, 6, 8, 10],
+      },
+      hard: {
+        label: "💀 Hard", lives: 2, loops: 0.06, timePerStep: 0.5,
+        cells: [32, 28, 26, 24, 22],
+        mud: [0.06, 0.07, 0.08, 0.09, 0.10],
+        spikes: [5, 8, 11, 14, 18],
+      },
+    };
 
     const $ = id => document.getElementById(id);
     const boardEl = $("board");
     const gridEl = $("grid");
     const speedEl = $("speed");
 
-    let rows, cols, walls, cells, start, end;
+    let cellSize = DEFAULT_CELL;
+    let rows, cols, walls, terrain, cells, start, end;
     let running = false;
     let runId = 0;
     let searched = false;
     let drag = null;
-    let game = null; // { pos, moves, t0, optimal, timer } while playing
+    // While playing: { cfg, level, lives, stars, phase, pos, moves, t0, optimal, limit, timer }
+    // phase is "building" | "playing" | "won" | "lost".
+    let game = null;
 
     // ---------- Grid setup ----------
+
+    function setCellSize(px) {
+      cellSize = px;
+      document.documentElement.style.setProperty("--cell", `${px}px`);
+    }
 
     // Odd dimensions keep maze walls on even indices and passages on odd ones.
     function fitDims() {
       const style = getComputedStyle(boardEl);
       const w = boardEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       const h = boardEl.clientHeight - parseFloat(style.paddingBottom);
-      let c = Math.max(11, Math.floor(w / CELL)), r = Math.max(11, Math.floor(h / CELL));
+      let c = Math.max(11, Math.floor(w / cellSize)), r = Math.max(11, Math.floor(h / cellSize));
       if (c % 2 === 0) c--;
       if (r % 2 === 0) r--;
       return [r, c];
     }
 
-    function buildGrid() {
-      endGame();
+    function buildGrid(corners = false) {
       stopAnimation();
       [rows, cols] = fitDims();
 
       walls = new Uint8Array(rows * cols);
+      terrain = new Uint8Array(rows * cols);
       cells = [];
-      gridEl.style.gridTemplateColumns = `repeat(${cols}, ${CELL}px)`;
+      gridEl.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
       gridEl.innerHTML = "";
       const frag = document.createDocumentFragment();
       for (let i = 0; i < rows * cols; i++) {
@@ -469,9 +634,14 @@
       }
       gridEl.appendChild(frag);
 
-      const mid = oddOf(Math.floor(rows / 2));
-      start = mid * cols + oddOf(Math.floor(cols / 4));
-      end = mid * cols + oddOf(Math.floor((cols * 3) / 4));
+      if (corners) {
+        start = cols + 1;
+        end = (rows - 2) * cols + cols - 2;
+      } else {
+        const mid = oddOf(Math.floor(rows / 2));
+        start = mid * cols + oddOf(Math.floor(cols / 4));
+        end = mid * cols + oddOf(Math.floor((cols * 3) / 4));
+      }
       cells[start].classList.add("start");
       cells[end].classList.add("end");
       searched = false;
@@ -482,10 +652,25 @@
     const rowOf = id => Math.floor(id / cols);
     const colOf = id => id % cols;
 
+    function shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
     function setWall(id, on) {
       if (id === start || id === end) return;
+      if (on && terrain[id]) setTerrain(id, NORMAL);
       walls[id] = on ? 1 : 0;
       cells[id].classList.toggle("wall", on);
+    }
+
+    function setTerrain(id, t) {
+      terrain[id] = t;
+      cells[id].classList.toggle("mud", t === MUD);
+      cells[id].classList.toggle("spike", t === SPIKE);
     }
 
     function clearSearch() {
@@ -495,12 +680,15 @@
     }
 
     function clearWalls() {
-      for (let i = 0; i < walls.length; i++) if (walls[i]) setWall(i, false);
+      for (let i = 0; i < walls.length; i++) {
+        if (walls[i]) setWall(i, false);
+        if (terrain[i]) setTerrain(i, NORMAL);
+      }
     }
 
-    function updateStats(visited, pathLen) {
+    function updateStats(visited, cost) {
       $("visitedCount").textContent = visited ?? "–";
-      $("pathLength").textContent = pathLen ?? "–";
+      $("pathLength").textContent = cost ?? "–";
     }
 
     function setStatus(msg) { $("status").textContent = msg; }
@@ -517,7 +705,7 @@
       if (id < 0) return;
       e.preventDefault();
       if (game) {
-        movePlayer(rowOf(id) - rowOf(game.pos), colOf(id) - colOf(game.pos));
+        if (game.phase === "playing") movePlayer(rowOf(id) - rowOf(game.pos), colOf(id) - colOf(game.pos));
         return;
       }
       if (id === start) drag = "start";
@@ -546,7 +734,7 @@
     }
 
     function moveEndpoint(which, id) {
-      if (walls[id] || id === start || id === end) return;
+      if (walls[id] || terrain[id] === SPIKE || id === start || id === end) return;
       const cur = which === "start" ? start : end;
       cells[cur].classList.remove(which);
       cells[id].classList.add(which);
@@ -592,7 +780,10 @@
       }
     }
 
+    const stepCost = id => (terrain[id] === MUD ? MUD_COST : 1);
+
     // Dijkstra and A* share one implementation; Dijkstra is A* with a zero heuristic.
+    // Mud is weighted, spikes are treated as impassable.
     function search(algo) {
       const n = rows * cols;
       const dist = new Float64Array(n).fill(Infinity);
@@ -619,8 +810,8 @@
           const nr = r + dr, nc = c + dc;
           if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
           const v = nr * cols + nc;
-          if (walls[v] || closed[v]) continue;
-          const g = dist[u] + 1;
+          if (walls[v] || terrain[v] === SPIKE || closed[v]) continue;
+          const g = dist[u] + stepCost(v);
           if (g < dist[v]) {
             dist[v] = g;
             prev[v] = u;
@@ -632,20 +823,25 @@
       const path = [];
       if (closed[end]) for (let u = end; u !== -1; u = prev[u]) path.push(u);
       path.reverse();
-      return { order, path };
+      return { order, path, cost: closed[end] ? dist[end] : Infinity };
     }
 
-    function reportResult(order, path) {
-      updateStats(order.length, path.length ? path.length - 1 : "no path");
+    function reportResult({ order, path, cost }) {
+      updateStats(order.length, path.length ? cost : "no path");
       const name = $("searchAlgo").selectedOptions[0].text;
+      if (game) {
+        setStatus(`${name} found the optimal route (cost ${cost}).`);
+        return;
+      }
       setStatus(path.length
         ? `${name} found a shortest path. Drag nodes or walls to update it live.`
         : `${name}: no path exists between start and end.`);
     }
 
-    function animateSearch() {
+    function animateSearch(onDone) {
       clearSearch();
-      const { order, path } = search($("searchAlgo").value);
+      const result = search($("searchAlgo").value);
+      const { order, path } = result;
       const steps = order.map(id => [id, "visited"]).concat(path.map(id => [id, "path"]));
       setStatus("Searching…");
       animate(steps, ([id, cls]) => {
@@ -654,20 +850,21 @@
         cells[id].classList.add(cls);
       }, () => {
         searched = true;
-        reportResult(order, path);
+        reportResult(result);
+        if (onDone) onDone();
       });
     }
 
     // Re-runs the search with no animation (used while editing after a search).
     function instantSearch() {
       for (const el of cells) el.classList.remove("visited", "path", "instant");
-      const { order, path } = search($("searchAlgo").value);
-      const onPath = new Set(path);
-      for (const id of order) {
+      const result = search($("searchAlgo").value);
+      const onPath = new Set(result.path);
+      for (const id of result.order) {
         if (id === start || id === end) continue;
         cells[id].classList.add(onPath.has(id) ? "path" : "visited", "instant");
       }
-      reportResult(order, path);
+      reportResult(result);
     }
 
     // ---------- Maze generation ----------
@@ -751,7 +948,7 @@
       if (which === "start") start = id; else end = id;
     }
 
-    function generateMaze(onDone) {
+    function generateMaze(onDone, speed) {
       stopAnimation();
       clearSearch();
       clearWalls();
@@ -762,87 +959,204 @@
       setStatus("Generating maze…");
       animate(steps, ([id, on]) => setWall(id, on), onDone || (() => {
         setStatus("Maze ready. Click Animate Search to find the shortest path.");
-      }));
+      }), speed);
+    }
+
+    // Knocks out a share of the walls between passages, creating loops and alternate routes.
+    function addLoops(fraction) {
+      const candidates = [];
+      for (let r = 1; r < rows - 1; r++) {
+        for (let c = 1; c < cols - 1; c++) {
+          if ((r + c) % 2 === 1 && walls[r * cols + c]) candidates.push(r * cols + c);
+        }
+      }
+      shuffle(candidates)
+        .slice(0, Math.round(candidates.length * fraction))
+        .forEach(id => setWall(id, false));
+    }
+
+    function placeObstacles(mudFraction, spikeCount) {
+      const open = [];
+      for (let i = 0; i < walls.length; i++) if (!walls[i] && i !== start && i !== end) open.push(i);
+      shuffle(open);
+      const mudCount = Math.round(open.length * mudFraction);
+      for (let i = 0; i < mudCount; i++) setTerrain(open[i], MUD);
+
+      // Spikes favour the current best route so they force detours, but each one is
+      // kept only if a spike-free route to the goal still exists.
+      const nearEndpoint = id =>
+        Math.abs(rowOf(id) - rowOf(start)) + Math.abs(colOf(id) - colOf(start)) <= 2 ||
+        Math.abs(rowOf(id) - rowOf(end)) + Math.abs(colOf(id) - colOf(end)) <= 2;
+      let placed = 0;
+      for (let attempt = 0; placed < spikeCount && attempt < spikeCount * 25; attempt++) {
+        const pool = Math.random() < 0.6 ? search("astar").path : open;
+        const id = pool[Math.floor(Math.random() * pool.length)];
+        if (id === start || id === end || terrain[id] || nearEndpoint(id)) continue;
+        setTerrain(id, SPIKE);
+        if (search("astar").path.length) placed++;
+        else setTerrain(id, NORMAL);
+      }
     }
 
     // ---------- Game mode ----------
 
-    function startGame() {
-      $("introModal").hidden = true;
-      $("winModal").hidden = true;
-      endGame();
-      setStatus("Building your maze…");
-      generateMaze(() => {
-        game = {
-          pos: start,
-          moves: 0,
-          t0: performance.now(),
-          optimal: search("astar").path.length - 1,
-          timer: setInterval(updateGameStats, 100),
-        };
-        cells[start].classList.add("player");
-        $("gameStats").hidden = false;
-        $("playBtn").textContent = "■ Quit Game";
-        updateGameStats();
-        setStatus("Go! Use the arrow keys / WASD to reach the red goal.");
-        syncControls();
-      });
+    function startRun(difficulty) {
+      const cfg = DIFFICULTIES[difficulty];
+      game = { cfg, level: 1, lives: cfg.lives, stars: 0, timer: null };
+      startLevel();
     }
 
-    function endGame() {
+    function startLevel() {
+      clearInterval(game.timer);
+      for (const id of ["introModal", "winModal", "loseModal"]) $(id).hidden = true;
+      const { cfg } = game;
+      const i = game.level - 1;
+      Object.assign(game, { phase: "building", moves: 0, t0: performance.now(), limit: null });
+
+      setCellSize(cfg.cells[i]);
+      buildGrid(true);
+      $("gameStats").hidden = false;
+      $("playBtn").textContent = "■ Quit Game";
+      syncControls();
+      updateGameStats();
+      setStatus(`Level ${game.level}: building the maze…`);
+
+      generateMaze(() => {
+        addLoops(cfg.loops);
+        placeObstacles(cfg.mud[i], cfg.spikes[i]);
+        // Safety net: generation always leaves a spike-free route, but never ship an unsolvable level.
+        if (!search("dijkstra").path.length) {
+          for (let id = 0; id < terrain.length; id++) if (terrain[id] === SPIKE) setTerrain(id, NORMAL);
+        }
+        game.optimal = search("dijkstra").cost;
+        game.limit = cfg.timePerStep ? Math.ceil(game.optimal * cfg.timePerStep + 10) : null;
+        game.pos = start;
+        cells[start].classList.add("player");
+        game.t0 = performance.now();
+        game.phase = "playing";
+        game.timer = setInterval(tick, 100);
+        tick();
+        setStatus(game.limit
+          ? `Level ${game.level}: reach the goal within ${game.limit}s!`
+          : `Level ${game.level}: go! Reach the red goal.`);
+      }, GAME_MAZE_SPEED);
+    }
+
+    function quitGame() {
       if (!game) return;
       clearInterval(game.timer);
+      stopAnimation();
       for (const el of cells) el.classList.remove("player", "trail");
       game = null;
+      for (const id of ["winModal", "loseModal"]) $(id).hidden = true;
       $("gameStats").hidden = true;
-      $("playBtn").textContent = "▶ Start Game";
+      $("playBtn").textContent = "▶ New Game";
       syncControls();
     }
 
-    function updateGameStats() {
-      $("moves").textContent = game.moves;
-      $("time").textContent = `${((performance.now() - game.t0) / 1000).toFixed(1)}s`;
+    const elapsed = () => (performance.now() - game.t0) / 1000;
+
+    function tick() {
+      updateGameStats();
+      if (game.phase === "playing" && game.limit && elapsed() >= game.limit) {
+        loseLevel("⏱ Time's up!", `You ran out of time on level ${game.level}.`);
+      }
     }
 
-    function movePlayer(dr, dc) {
-      if (!game || running || Math.abs(dr) + Math.abs(dc) !== 1) return;
-      const r = rowOf(game.pos) + dr, c = colOf(game.pos) + dc;
-      if (r < 0 || r >= rows || c < 0 || c >= cols) return;
-      const id = r * cols + c;
-      if (walls[id]) return;
+    function updateGameStats() {
+      const { cfg } = game;
+      $("gDifficulty").textContent = cfg.label;
+      $("gLevel").textContent = `${game.level}/${LEVELS}`;
+      $("gLives").textContent = "❤️".repeat(game.lives) + "🤍".repeat(cfg.lives - game.lives);
+      $("moves").textContent = game.moves;
+      const t = game.phase === "building" ? 0 : elapsed();
+      $("time").textContent = game.limit
+        ? `${Math.min(t, game.limit).toFixed(1)}s / ${game.limit}s`
+        : `${t.toFixed(1)}s`;
+    }
+
+    function placePlayer(id) {
       cells[game.pos].classList.remove("player");
       if (game.pos !== start) cells[game.pos].classList.add("trail");
       cells[id].classList.remove("trail");
       cells[id].classList.add("player");
       game.pos = id;
-      game.moves++;
-      updateGameStats();
-      if (id === end) winGame();
     }
 
-    function winGame() {
-      const { moves, optimal } = game;
-      const secs = (performance.now() - game.t0) / 1000;
+    function shakeGrid() {
+      gridEl.classList.remove("shake");
+      void gridEl.offsetWidth; // restart the animation
+      gridEl.classList.add("shake");
+    }
+
+    function movePlayer(dr, dc) {
+      if (!game || game.phase !== "playing" || running || Math.abs(dr) + Math.abs(dc) !== 1) return;
+      const r = rowOf(game.pos) + dr, c = colOf(game.pos) + dc;
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+      const id = r * cols + c;
+      if (walls[id]) return;
+
+      if (terrain[id] === SPIKE) {
+        game.moves++;
+        game.lives--;
+        shakeGrid();
+        updateGameStats();
+        if (game.lives <= 0) {
+          loseLevel("💀 Game over", `The spikes got you on level ${game.level}, and you're out of lives.`);
+        } else {
+          placePlayer(start);
+          setStatus(`Ouch! Spikes! You lost a life and are back at the start (${game.lives} left).`);
+        }
+        return;
+      }
+
+      placePlayer(id);
+      game.moves += stepCost(id);
+      updateGameStats();
+      if (terrain[id] === MUD) setStatus(`Stuck in the mud! That step cost ${MUD_COST} moves.`);
+      if (id === end) winLevel();
+    }
+
+    function winLevel() {
+      game.phase = "won";
       clearInterval(game.timer);
       updateGameStats();
+      const { moves, optimal } = game;
       const stars = moves === optimal ? 3 : moves <= optimal * 1.5 ? 2 : 1;
+      game.stars += stars;
+      const last = game.level === LEVELS;
+
+      $("winTitle").textContent = last ? `🏆 You beat ${game.cfg.label} mode!` : `🎉 Level ${game.level} complete!`;
       $("winStars").textContent = "⭐".repeat(stars) + "☆".repeat(3 - stars);
-      $("winMessage").textContent = stars === 3
-        ? "Perfect run! You matched the shortest possible path."
+      const rating = stars === 3
+        ? "Perfect run! You matched the best possible route."
         : stars === 2
-          ? `Nice! Just ${moves - optimal} moves more than the optimal route.`
-          : "You made it! Try again to find a shorter route.";
+          ? `Nice! Just ${moves - optimal} moves more than the best route.`
+          : "You made it! A shorter route was possible.";
+      $("winMessage").textContent = last
+        ? `${rating} Final score: ${game.stars} / ${LEVELS * 3} stars.`
+        : rating;
       $("winMoves").textContent = moves;
       $("winOptimal").textContent = optimal;
-      $("winTime").textContent = `${secs.toFixed(1)}s`;
+      $("winTime").textContent = `${elapsed().toFixed(1)}s`;
+      $("nextBtn").textContent = last ? "Play Again" : "Next Level ▶";
       $("winModal").hidden = false;
-      setStatus("You win! 🎉");
+      setStatus(last ? "You won the game! 🏆" : `Level ${game.level} cleared! 🎉`);
     }
 
-    function showOptimalPath() {
-      $("winModal").hidden = true;
-      endGame();
-      animateSearch();
+    function loseLevel(title, message) {
+      game.phase = "lost";
+      clearInterval(game.timer);
+      updateGameStats();
+      $("loseTitle").textContent = title;
+      $("loseMessage").textContent = `${message} Retry the level with full lives, or head back to the menu.`;
+      $("loseModal").hidden = false;
+      setStatus(title);
+    }
+
+    function showMenu() {
+      quitGame();
+      $("introModal").hidden = false;
     }
 
     const KEYS = {
@@ -852,20 +1166,20 @@
 
     window.addEventListener("keydown", e => {
       const dir = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
-      if (!dir || !game || !$("winModal").hidden) return;
+      if (!dir || !game || game.phase !== "playing") return;
       e.preventDefault();
       movePlayer(...dir);
     });
 
     // ---------- Animation engine ----------
 
-    function animate(steps, apply, done) {
+    function animate(steps, apply, done, speed) {
       const myRun = ++runId;
       let i = 0, budget = 0;
       setRunning(true);
       (function frame() {
         if (myRun !== runId) return;
-        budget += SPEEDS[speedEl.value];
+        budget += speed ?? SPEEDS[speedEl.value];
         while (budget >= 1 && i < steps.length) {
           apply(steps[i++]);
           budget--;
@@ -891,42 +1205,65 @@
 
     // Maze/search tools are locked during animations and while a game is in progress.
     function syncControls() {
-      for (const id of ["mazeBtn", "searchBtn", "mazeAlgo", "searchAlgo"]) $(id).disabled = running || !!game;
-      $("playBtn").disabled = running && !game;
+      for (const id of ["mazeBtn", "searchBtn", "mazeAlgo", "searchAlgo", "clearPathBtn", "clearBtn"]) {
+        $(id).disabled = !!game || (running && id !== "clearPathBtn" && id !== "clearBtn");
+      }
+      $("showPathBtn").disabled = running;
     }
 
     // ---------- Controls ----------
 
     $("mazeBtn").addEventListener("click", () => generateMaze());
-    $("searchBtn").addEventListener("click", animateSearch);
+    $("searchBtn").addEventListener("click", () => animateSearch());
 
     $("playBtn").addEventListener("click", () => {
       if (game) {
-        endGame();
-        setStatus("Game ended. Click Start Game to play again.");
+        quitGame();
+        setStatus("Game ended. Click New Game to play again.");
       } else {
-        startGame();
+        $("introModal").hidden = false;
       }
     });
 
-    $("introStartBtn").addEventListener("click", startGame);
-    $("againBtn").addEventListener("click", startGame);
-    $("showPathBtn").addEventListener("click", showOptimalPath);
-    $("helpBtn").addEventListener("click", () => { $("introModal").hidden = false; });
+    $("introStartBtn").addEventListener("click", () => {
+      startRun(document.querySelector('input[name="difficulty"]:checked').value);
+    });
+
     $("exploreBtn").addEventListener("click", () => {
       $("introModal").hidden = true;
       setStatus("Explore mode: draw walls, generate a maze, or animate a search.");
     });
 
+    $("helpBtn").addEventListener("click", () => { $("introModal").hidden = false; });
+
+    $("showPathBtn").addEventListener("click", () => {
+      $("winModal").hidden = true;
+      animateSearch(() => { $("winModal").hidden = false; });
+    });
+
+    $("nextBtn").addEventListener("click", () => {
+      if (game.level === LEVELS) {
+        showMenu();
+      } else {
+        game.level++;
+        startLevel();
+      }
+    });
+
+    $("retryBtn").addEventListener("click", () => {
+      game.lives = game.cfg.lives;
+      startLevel();
+    });
+
+    $("menuBtn").addEventListener("click", showMenu);
+
     $("clearPathBtn").addEventListener("click", () => {
-      endGame();
       stopAnimation();
       clearSearch();
       setStatus("Path cleared.");
     });
 
     $("clearBtn").addEventListener("click", () => {
-      endGame();
       stopAnimation();
       clearSearch();
       clearWalls();
@@ -939,10 +1276,12 @@
     speedEl.addEventListener("input", syncSpeedLabel);
     syncSpeedLabel();
 
+    // Rebuild the explore grid to fit the window; an in-progress game keeps its maze.
     let resizeTimer;
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
+        if (game) return;
         const [r, c] = fitDims();
         if (r !== rows || c !== cols) {
           buildGrid();
