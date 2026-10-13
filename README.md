@@ -1,13 +1,13 @@
-# Pathfinding & Maze Visualizer
+# MazeRunner
 
-An interactive maze game and pathfinding visualizer that runs entirely in a single `index.html`. It uses vanilla HTML, CSS and JavaScript, with no dependencies, build step or backend.
+A maze game and pathfinding visualizer that runs entirely in a single file, `MazeRunner.html`. It uses vanilla HTML, CSS and JavaScript, with no dependencies, build step or backend.
 
 ## Play
 
-Open `index.html` in any web browser:
+Open `MazeRunner.html` in any web browser:
 
 ```bash
-open index.html
+open MazeRunner.html
 ```
 
 1. Choose a difficulty (**Easy**, **Medium** or **Hard**) and click **Start Game**.
