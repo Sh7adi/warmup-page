@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MazeRunner</title>
+  <script>
+    // Apply the saved theme choice (light / dark / system) before first paint to avoid a flash.
+    try {
+      const pref = localStorage.getItem("mazerunner-theme") || "system";
+      document.documentElement.dataset.theme = pref === "system"
+        ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : pref;
+    } catch { document.documentElement.dataset.theme = "light"; }
+  </script>
   <style>
     :root {
       --bg: #f1f5f9;
@@ -24,7 +33,35 @@
       --mud-dot: #8b5a2b;
       --spike-bg: #fee2e2;
       --spike: #b91c1c;
+      --trail-border: #86efac;
+      --hover: #f8fafc;
+      --selected: #eef2ff;
+      --selected-border: #c7d2fe;
+      --overlay: rgba(15, 23, 42, 0.45);
       --cell: 26px;
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0b1120;
+      --panel: #111827;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --line: #243044;
+      --accent: #818cf8;
+      --accent-dark: #6366f1;
+      --wall: #64748b;
+      --visited: #164e63;
+      --trail: #14532d;
+      --trail-border: #166534;
+      --mud: #7c4f28;
+      --mud-dot: #4a2c12;
+      --spike-bg: #450a0a;
+      --spike: #f87171;
+      --hover: #1f2937;
+      --selected: #1e1b4b;
+      --selected-border: #4338ca;
+      --overlay: rgba(2, 6, 23, 0.7);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -104,7 +141,7 @@
       border: 1px solid var(--line);
     }
 
-    button:hover:not(:disabled) { background: #f8fafc; }
+    button:hover:not(:disabled) { background: var(--hover); }
     button:active:not(:disabled) { transform: translateY(1px); }
 
     button.primary {
@@ -118,6 +155,22 @@
     button:disabled, select:disabled {
       opacity: 0.45;
       cursor: not-allowed;
+    }
+
+    .theme-switch button {
+      padding: 0.4rem 0.65rem;
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted);
+    }
+
+    .theme-switch button:hover:not(:disabled) { background: transparent; color: var(--text); }
+
+    .theme-switch button[aria-checked="true"] {
+      background: var(--panel);
+      border-color: var(--line);
+      color: var(--text);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     }
 
     #helpBtn {
@@ -232,7 +285,7 @@
       animation: pathPop 0.45s ease-out;
     }
 
-    .cell.trail { background: var(--trail); border-color: #86efac; }
+    .cell.trail { background: var(--trail); border-color: var(--trail-border); }
 
     .cell.instant { animation: none; }
 
@@ -291,7 +344,7 @@
       align-items: center;
       justify-content: center;
       padding: 1rem;
-      background: rgba(15, 23, 42, 0.45);
+      background: var(--overlay);
       backdrop-filter: blur(4px);
       z-index: 10;
     }
@@ -377,11 +430,11 @@
     }
 
     .difficulty b { font-size: 1rem; color: var(--text); }
-    .difficulty span:hover { border-color: #c7d2fe; }
+    .difficulty span:hover { border-color: var(--selected-border); }
 
     .difficulty input:checked + span {
       border-color: var(--accent);
-      background: #eef2ff;
+      background: var(--selected);
     }
 
     .difficulty input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -460,6 +513,11 @@
       <button id="playBtn" class="primary">▶ New Game</button>
       <button id="clearPathBtn">Clear Path</button>
       <button id="clearBtn">Clear Grid</button>
+      <div class="group theme-switch" role="radiogroup" aria-label="Theme">
+        <button role="radio" data-theme-choice="light" title="Light mode">☀️ Light</button>
+        <button role="radio" data-theme-choice="dark" title="Dark mode">🌙 Dark</button>
+        <button role="radio" data-theme-choice="system" title="Match your system setting">💻 Auto</button>
+      </div>
       <button id="helpBtn" title="How to play">?</button>
     </div>
   </header>
@@ -1235,6 +1293,32 @@
     });
 
     $("helpBtn").addEventListener("click", () => { $("introModal").hidden = false; });
+
+    // ---------- Theme ----------
+
+    const THEME_KEY = "mazerunner-theme";
+    const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+    const themeButtons = document.querySelectorAll("[data-theme-choice]");
+
+    function themePref() {
+      try { return localStorage.getItem(THEME_KEY) || "system"; } catch { return "system"; }
+    }
+
+    function applyTheme(pref) {
+      document.documentElement.dataset.theme = pref === "system" ? (darkQuery.matches ? "dark" : "light") : pref;
+      for (const b of themeButtons) b.setAttribute("aria-checked", String(b.dataset.themeChoice === pref));
+    }
+
+    for (const b of themeButtons) {
+      b.addEventListener("click", () => {
+        try { localStorage.setItem(THEME_KEY, b.dataset.themeChoice); } catch {}
+        applyTheme(b.dataset.themeChoice);
+      });
+    }
+
+    // In Auto mode, follow the OS when it switches between light and dark.
+    darkQuery.addEventListener("change", () => { if (themePref() === "system") applyTheme("system"); });
+    applyTheme(themePref());
 
     $("showPathBtn").addEventListener("click", () => {
       $("winModal").hidden = true;

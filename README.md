@@ -39,3 +39,7 @@ Each of the 5 levels has a larger maze and more obstacles than the one before.
 - **Generate Maze:** Recursive Division or Prim's algorithm.
 - **Animate Search:** A* or Dijkstra, with an adjustable animation speed.
 - After a search finishes, editing the grid updates the shortest path live.
+
+## Appearance
+
+Use the **Light / Dark / Auto** switch in the header to choose a theme. **Auto** follows your system setting, and your choice is remembered for next time.
