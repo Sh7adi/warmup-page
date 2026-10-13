@@ -3,46 +3,955 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Warmup Page</title>
+  <title>Pathfinding &amp; Maze Visualizer</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      color: #f8fafc;
+    :root {
+      --bg: #f1f5f9;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --accent: #6366f1;
+      --accent-dark: #4f46e5;
+      --start: #22c55e;
+      --end: #ef4444;
+      --wall: #1e293b;
+      --visited: #bae6fd;
+      --path: #fbbf24;
+      --cell: 26px;
     }
 
-    main {
-      text-align: center;
-      padding: 2rem;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      user-select: none;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem 1.5rem;
+      padding: 0.9rem 1.5rem;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
     }
 
     h1 {
-      font-size: clamp(2rem, 6vw, 3.5rem);
+      font-size: 1.15rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      background: linear-gradient(90deg, #38bdf8, #a78bfa);
+      letter-spacing: -0.01em;
+      margin-right: auto;
+    }
+
+    h1 span {
+      background: linear-gradient(90deg, var(--accent), #0ea5e9);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
     }
 
-    p {
-      margin-top: 1rem;
-      font-size: 1.125rem;
-      color: #94a3b8;
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem;
+      background: var(--bg);
+      border-radius: 10px;
+    }
+
+    select, button {
+      font: inherit;
+      font-size: 0.875rem;
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s, transform 0.05s;
+    }
+
+    select {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    button {
+      background: var(--panel);
+      color: var(--text);
+      font-weight: 600;
+      border: 1px solid var(--line);
+    }
+
+    button:hover:not(:disabled) { background: #f8fafc; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover:not(:disabled) { background: var(--accent-dark); }
+
+    button:disabled, select:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .speed {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0 0.4rem;
+    }
+
+    .speed input { accent-color: var(--accent); width: 110px; }
+    .speed output { width: 4.5em; font-weight: 600; color: var(--text); }
+
+    .infobar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem 1.5rem;
+      padding: 0.7rem 1.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .legend, .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.1rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+
+    .stats b { color: var(--text); }
+
+    #status { color: var(--text); font-weight: 500; }
+
+    #board {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 1.5rem 1.5rem;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #grid {
+      display: grid;
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .cell {
+      width: var(--cell);
+      height: var(--cell);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      cursor: crosshair;
+    }
+
+    .cell.wall {
+      background: var(--wall);
+      border-color: var(--wall);
+      animation: wallPop 0.2s ease-out;
+    }
+
+    .cell.visited {
+      background: var(--visited);
+      animation: visit 0.7s ease-out;
+    }
+
+    .cell.path {
+      background: var(--path);
+      border-color: #f59e0b;
+      animation: pathPop 0.45s ease-out;
+    }
+
+    .cell.instant { animation: none; }
+
+    .cell.start, .cell.end {
+      cursor: grab;
+      animation: none;
+      position: relative;
+    }
+
+    .cell.start { background: var(--start); border-color: var(--start); }
+    .cell.end { background: var(--end); border-color: var(--end); }
+
+    .cell.start::after, .cell.end::after {
+      content: "";
+      position: absolute;
+      inset: 25%;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .cell.trail { background: #bbf7d0; border-color: #86efac; }
+
+    .cell.player {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      position: relative;
+      animation: pathPop 0.2s ease-out;
+    }
+
+    .cell.player::after {
+      content: "";
+      position: absolute;
+      inset: 25%;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    #helpBtn {
+      width: 2.2rem;
+      padding: 0.5rem 0;
+      border-radius: 50%;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 10;
+    }
+
+    .overlay[hidden] { display: none; }
+
+    .modal {
+      width: min(480px, 100%);
+      padding: 2rem;
+      background: var(--panel);
+      border-radius: 16px;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+      animation: pathPop 0.3s ease-out;
+    }
+
+    .modal h2 {
+      font-size: 1.6rem;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.4rem;
+    }
+
+    .modal .subtitle { color: var(--muted); margin-bottom: 1.25rem; }
+
+    .modal ol {
+      padding-left: 1.25rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+
+    .modal kbd {
+      padding: 0.1rem 0.4rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+
+    .modal .actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
+    .win-stars { font-size: 2.2rem; text-align: center; margin: 0.5rem 0; }
+
+    .win-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin: 1rem 0 1.5rem;
+      text-align: center;
+    }
+
+    .win-stats div {
+      padding: 0.7rem;
+      background: var(--bg);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .win-stats b { display: block; font-size: 1.3rem; color: var(--text); }
+
+    @keyframes wallPop {
+      0% { transform: scale(0.4); }
+      70% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes visit {
+      0% { transform: scale(0.3); background: #6366f1; border-radius: 50%; }
+      50% { background: #38bdf8; }
+      75% { transform: scale(1.1); }
+      100% { transform: scale(1); background: var(--visited); }
+    }
+
+    @keyframes pathPop {
+      0% { transform: scale(0.5); }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); }
     }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Hello from Agentic Programming!</h1>
-    <p>A warmup page for the Agentic AI course.</p>
-  </main>
+  <header>
+    <h1><span>Pathfinding</span> &amp; Maze Visualizer</h1>
+    <div class="controls">
+      <div class="group">
+        <select id="mazeAlgo" aria-label="Maze algorithm">
+          <option value="division">Recursive Division</option>
+          <option value="prim">Prim's Algorithm</option>
+        </select>
+        <button id="mazeBtn">Generate Maze</button>
+      </div>
+      <div class="group">
+        <select id="searchAlgo" aria-label="Search algorithm">
+          <option value="astar">A* Search</option>
+          <option value="dijkstra">Dijkstra</option>
+        </select>
+        <button id="searchBtn" class="primary">Animate Search</button>
+      </div>
+      <label class="speed">
+        Speed
+        <input id="speed" type="range" min="0" max="6" value="3">
+        <output id="speedLabel">Normal</output>
+      </label>
+      <button id="playBtn" class="primary">▶ Start Game</button>
+      <button id="clearPathBtn">Clear Path</button>
+      <button id="clearBtn">Clear Grid</button>
+      <button id="helpBtn" title="How to play">?</button>
+    </div>
+  </header>
+
+  <div class="infobar">
+    <div class="legend">
+      <span><i class="swatch" style="background: var(--start)"></i>Start</span>
+      <span><i class="swatch" style="background: var(--end)"></i>End</span>
+      <span><i class="swatch" style="background: var(--wall)"></i>Wall</span>
+      <span><i class="swatch" style="background: var(--visited)"></i>Visited</span>
+      <span><i class="swatch" style="background: var(--path)"></i>Shortest path</span>
+    </div>
+    <div class="stats">
+      <span id="status">Click and drag to draw walls. Drag the green and red nodes to move them.</span>
+      <span id="gameStats" hidden>Moves: <b id="moves">0</b> &nbsp;·&nbsp; Time: <b id="time">0.0s</b></span>
+      <span>Visited: <b id="visitedCount">–</b></span>
+      <span>Path length: <b id="pathLength">–</b></span>
+    </div>
+  </div>
+
+  <div id="board"><div id="grid"></div></div>
+
+  <div id="introModal" class="overlay">
+    <div class="modal">
+      <h2>🧭 Pathfinding &amp; Maze Visualizer</h2>
+      <p class="subtitle">Escape the maze, then see how A* and Dijkstra would have done it.</p>
+      <ol>
+        <li>Click <b>Start Game</b> to generate a random maze.</li>
+        <li>Move the <b style="color: #3b82f6">blue player</b> with <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, or click a cell next to you.</li>
+        <li><b>Reach the <span style="color: var(--end)">red goal</span> to win!</b> Use as few moves as the shortest path for 3 stars.</li>
+        <li>Want to experiment instead? Use <b>Explore</b> mode to draw walls, generate mazes and animate the search algorithms.</li>
+      </ol>
+      <div class="actions">
+        <button id="exploreBtn">Explore</button>
+        <button id="introStartBtn" class="primary">▶ Start Game</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="winModal" class="overlay" hidden>
+    <div class="modal">
+      <h2>🎉 You escaped the maze!</h2>
+      <div class="win-stars" id="winStars"></div>
+      <p class="subtitle" id="winMessage"></p>
+      <div class="win-stats">
+        <div><b id="winMoves"></b>Your moves</div>
+        <div><b id="winOptimal"></b>Shortest path</div>
+        <div><b id="winTime"></b>Time</div>
+      </div>
+      <div class="actions">
+        <button id="showPathBtn">Show Optimal Path</button>
+        <button id="againBtn" class="primary">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CELL = 26;
+    const SPEEDS = [0.25, 0.5, 1, 3, 8, 20, 60]; // steps per animation frame
+    const SPEED_LABELS = ["Slowest", "Slower", "Slow", "Normal", "Fast", "Faster", "Fastest"];
+    const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const DIRS2 = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+
+    const $ = id => document.getElementById(id);
+    const boardEl = $("board");
+    const gridEl = $("grid");
+    const speedEl = $("speed");
+
+    let rows, cols, walls, cells, start, end;
+    let running = false;
+    let runId = 0;
+    let searched = false;
+    let drag = null;
+    let game = null; // { pos, moves, t0, optimal, timer } while playing
+
+    // ---------- Grid setup ----------
+
+    // Odd dimensions keep maze walls on even indices and passages on odd ones.
+    function fitDims() {
+      const style = getComputedStyle(boardEl);
+      const w = boardEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const h = boardEl.clientHeight - parseFloat(style.paddingBottom);
+      let c = Math.max(11, Math.floor(w / CELL)), r = Math.max(11, Math.floor(h / CELL));
+      if (c % 2 === 0) c--;
+      if (r % 2 === 0) r--;
+      return [r, c];
+    }
+
+    function buildGrid() {
+      endGame();
+      stopAnimation();
+      [rows, cols] = fitDims();
+
+      walls = new Uint8Array(rows * cols);
+      cells = [];
+      gridEl.style.gridTemplateColumns = `repeat(${cols}, ${CELL}px)`;
+      gridEl.innerHTML = "";
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < rows * cols; i++) {
+        const el = document.createElement("div");
+        el.className = "cell";
+        el.dataset.id = i;
+        cells.push(el);
+        frag.appendChild(el);
+      }
+      gridEl.appendChild(frag);
+
+      const mid = oddOf(Math.floor(rows / 2));
+      start = mid * cols + oddOf(Math.floor(cols / 4));
+      end = mid * cols + oddOf(Math.floor((cols * 3) / 4));
+      cells[start].classList.add("start");
+      cells[end].classList.add("end");
+      searched = false;
+      updateStats();
+    }
+
+    function oddOf(n) { return n % 2 === 1 ? n : Math.max(1, n - 1); }
+    const rowOf = id => Math.floor(id / cols);
+    const colOf = id => id % cols;
+
+    function setWall(id, on) {
+      if (id === start || id === end) return;
+      walls[id] = on ? 1 : 0;
+      cells[id].classList.toggle("wall", on);
+    }
+
+    function clearSearch() {
+      for (const el of cells) el.classList.remove("visited", "path", "instant");
+      searched = false;
+      updateStats();
+    }
+
+    function clearWalls() {
+      for (let i = 0; i < walls.length; i++) if (walls[i]) setWall(i, false);
+    }
+
+    function updateStats(visited, pathLen) {
+      $("visitedCount").textContent = visited ?? "–";
+      $("pathLength").textContent = pathLen ?? "–";
+    }
+
+    function setStatus(msg) { $("status").textContent = msg; }
+
+    // ---------- Mouse / touch interaction ----------
+
+    function cellIdOf(el) {
+      return el && el.parentElement === gridEl ? Number(el.dataset.id) : -1;
+    }
+
+    gridEl.addEventListener("pointerdown", e => {
+      if (running) return;
+      const id = cellIdOf(e.target);
+      if (id < 0) return;
+      e.preventDefault();
+      if (game) {
+        movePlayer(rowOf(id) - rowOf(game.pos), colOf(id) - colOf(game.pos));
+        return;
+      }
+      if (id === start) drag = "start";
+      else if (id === end) drag = "end";
+      else {
+        drag = walls[id] ? "erase" : "draw";
+        paint(id);
+      }
+    });
+
+    window.addEventListener("pointermove", e => {
+      if (!drag) return;
+      const id = cellIdOf(document.elementFromPoint(e.clientX, e.clientY));
+      if (id < 0) return;
+      if (drag === "start" || drag === "end") moveEndpoint(drag, id);
+      else paint(id);
+    });
+
+    window.addEventListener("pointerup", () => { drag = null; });
+
+    function paint(id) {
+      const on = drag === "draw";
+      if (id === start || id === end || !!walls[id] === on) return;
+      setWall(id, on);
+      if (searched) instantSearch();
+    }
+
+    function moveEndpoint(which, id) {
+      if (walls[id] || id === start || id === end) return;
+      const cur = which === "start" ? start : end;
+      cells[cur].classList.remove(which);
+      cells[id].classList.add(which);
+      if (which === "start") start = id; else end = id;
+      if (searched) instantSearch();
+    }
+
+    // ---------- Search algorithms ----------
+
+    class MinHeap {
+      constructor() { this.items = []; }
+      get size() { return this.items.length; }
+      less(a, b) { return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]); }
+      push(item) {
+        const a = this.items;
+        a.push(item);
+        let i = a.length - 1;
+        while (i > 0) {
+          const p = (i - 1) >> 1;
+          if (!this.less(a[i], a[p])) break;
+          [a[i], a[p]] = [a[p], a[i]];
+          i = p;
+        }
+      }
+      pop() {
+        const a = this.items;
+        const top = a[0];
+        const last = a.pop();
+        if (a.length) {
+          a[0] = last;
+          let i = 0;
+          for (;;) {
+            const l = 2 * i + 1, r = l + 1;
+            let m = i;
+            if (l < a.length && this.less(a[l], a[m])) m = l;
+            if (r < a.length && this.less(a[r], a[m])) m = r;
+            if (m === i) break;
+            [a[i], a[m]] = [a[m], a[i]];
+            i = m;
+          }
+        }
+        return top;
+      }
+    }
+
+    // Dijkstra and A* share one implementation; Dijkstra is A* with a zero heuristic.
+    function search(algo) {
+      const n = rows * cols;
+      const dist = new Float64Array(n).fill(Infinity);
+      const prev = new Int32Array(n).fill(-1);
+      const closed = new Uint8Array(n);
+      const er = rowOf(end), ec = colOf(end);
+      const h = algo === "astar"
+        ? id => Math.abs(rowOf(id) - er) + Math.abs(colOf(id) - ec)
+        : () => 0;
+
+      const heap = new MinHeap();
+      const order = [];
+      dist[start] = 0;
+      heap.push([h(start), h(start), start]); // [f, tie-break on h, id]
+
+      while (heap.size) {
+        const u = heap.pop()[2];
+        if (closed[u]) continue;
+        closed[u] = 1;
+        order.push(u);
+        if (u === end) break;
+        const r = rowOf(u), c = colOf(u);
+        for (const [dr, dc] of DIRS) {
+          const nr = r + dr, nc = c + dc;
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          const v = nr * cols + nc;
+          if (walls[v] || closed[v]) continue;
+          const g = dist[u] + 1;
+          if (g < dist[v]) {
+            dist[v] = g;
+            prev[v] = u;
+            heap.push([g + h(v), h(v), v]);
+          }
+        }
+      }
+
+      const path = [];
+      if (closed[end]) for (let u = end; u !== -1; u = prev[u]) path.push(u);
+      path.reverse();
+      return { order, path };
+    }
+
+    function reportResult(order, path) {
+      updateStats(order.length, path.length ? path.length - 1 : "no path");
+      const name = $("searchAlgo").selectedOptions[0].text;
+      setStatus(path.length
+        ? `${name} found a shortest path. Drag nodes or walls to update it live.`
+        : `${name}: no path exists between start and end.`);
+    }
+
+    function animateSearch() {
+      clearSearch();
+      const { order, path } = search($("searchAlgo").value);
+      const steps = order.map(id => [id, "visited"]).concat(path.map(id => [id, "path"]));
+      setStatus("Searching…");
+      animate(steps, ([id, cls]) => {
+        if (id === start || id === end) return;
+        if (cls === "path") cells[id].classList.remove("visited");
+        cells[id].classList.add(cls);
+      }, () => {
+        searched = true;
+        reportResult(order, path);
+      });
+    }
+
+    // Re-runs the search with no animation (used while editing after a search).
+    function instantSearch() {
+      for (const el of cells) el.classList.remove("visited", "path", "instant");
+      const { order, path } = search($("searchAlgo").value);
+      const onPath = new Set(path);
+      for (const id of order) {
+        if (id === start || id === end) continue;
+        cells[id].classList.add(onPath.has(id) ? "path" : "visited", "instant");
+      }
+      reportResult(order, path);
+    }
+
+    // ---------- Maze generation ----------
+
+    function divisionSteps() {
+      const steps = [];
+      const wall = (r, c) => steps.push([r * cols + c, true]);
+      for (let c = 0; c < cols; c++) wall(0, c);
+      for (let r = 1; r < rows; r++) wall(r, cols - 1);
+      for (let c = cols - 2; c >= 0; c--) wall(rows - 1, c);
+      for (let r = rows - 2; r > 0; r--) wall(r, 0);
+
+      // Bounds are inclusive and odd; walls go on even lines, gaps on odd cells.
+      const randEven = (lo, hi) => lo + 1 + 2 * Math.floor(Math.random() * ((hi - lo) / 2));
+      const randOdd = (lo, hi) => lo + 2 * Math.floor(Math.random() * ((hi - lo) / 2 + 1));
+
+      (function divide(top, bottom, left, right) {
+        if (bottom - top < 2 || right - left < 2) return;
+        const w = right - left, h = bottom - top;
+        const horizontal = h > w ? true : w > h ? false : Math.random() < 0.5;
+        if (horizontal) {
+          const wr = randEven(top, bottom), gap = randOdd(left, right);
+          for (let c = left; c <= right; c++) if (c !== gap) wall(wr, c);
+          divide(top, wr - 1, left, right);
+          divide(wr + 1, bottom, left, right);
+        } else {
+          const wc = randEven(left, right), gap = randOdd(top, bottom);
+          for (let r = top; r <= bottom; r++) if (r !== gap) wall(r, wc);
+          divide(top, bottom, left, wc - 1);
+          divide(top, bottom, wc + 1, right);
+        }
+      })(1, rows - 2, 1, cols - 2);
+      return steps;
+    }
+
+    function primSteps() {
+      // Start fully walled, then carve passages from the start cell outward.
+      for (let i = 0; i < walls.length; i++) setWall(i, true);
+      const steps = [];
+      const inMaze = new Uint8Array(rows * cols);
+      const queued = new Uint8Array(rows * cols);
+      const frontier = [];
+      const inside = (r, c) => r >= 1 && r < rows - 1 && c >= 1 && c < cols - 1;
+
+      const carve = id => {
+        inMaze[id] = 1;
+        steps.push([id, false]);
+        const r = rowOf(id), c = colOf(id);
+        for (const [dr, dc] of DIRS2) {
+          const nr = r + dr, nc = c + dc, nid = nr * cols + nc;
+          if (inside(nr, nc) && !inMaze[nid] && !queued[nid]) {
+            queued[nid] = 1;
+            frontier.push(nid);
+          }
+        }
+      };
+
+      carve(start);
+      while (frontier.length) {
+        const k = Math.floor(Math.random() * frontier.length);
+        const id = frontier[k];
+        frontier[k] = frontier[frontier.length - 1];
+        frontier.pop();
+        const r = rowOf(id), c = colOf(id);
+        const links = DIRS2.filter(([dr, dc]) => inside(r + dr, c + dc) && inMaze[(r + dr) * cols + c + dc]);
+        const [dr, dc] = links[Math.floor(Math.random() * links.length)];
+        steps.push([(r + dr / 2) * cols + c + dc / 2, false]);
+        carve(id);
+      }
+      return steps;
+    }
+
+    // Moves a node onto odd coordinates so it always lands in a maze passage.
+    function snapToOdd(which) {
+      const cur = which === "start" ? start : end;
+      let id = oddOf(rowOf(cur)) * cols + oddOf(colOf(cur));
+      const other = which === "start" ? end : start;
+      if (id === other) id = rowOf(id) * cols + (colOf(id) + 2 < cols - 1 ? colOf(id) + 2 : colOf(id) - 2);
+      cells[cur].classList.remove(which);
+      cells[id].classList.add(which);
+      if (which === "start") start = id; else end = id;
+    }
+
+    function generateMaze(onDone) {
+      stopAnimation();
+      clearSearch();
+      clearWalls();
+      snapToOdd("start");
+      snapToOdd("end");
+      const algo = $("mazeAlgo").value;
+      const steps = algo === "prim" ? primSteps() : divisionSteps();
+      setStatus("Generating maze…");
+      animate(steps, ([id, on]) => setWall(id, on), onDone || (() => {
+        setStatus("Maze ready. Click Animate Search to find the shortest path.");
+      }));
+    }
+
+    // ---------- Game mode ----------
+
+    function startGame() {
+      $("introModal").hidden = true;
+      $("winModal").hidden = true;
+      endGame();
+      setStatus("Building your maze…");
+      generateMaze(() => {
+        game = {
+          pos: start,
+          moves: 0,
+          t0: performance.now(),
+          optimal: search("astar").path.length - 1,
+          timer: setInterval(updateGameStats, 100),
+        };
+        cells[start].classList.add("player");
+        $("gameStats").hidden = false;
+        $("playBtn").textContent = "■ Quit Game";
+        updateGameStats();
+        setStatus("Go! Use the arrow keys / WASD to reach the red goal.");
+        syncControls();
+      });
+    }
+
+    function endGame() {
+      if (!game) return;
+      clearInterval(game.timer);
+      for (const el of cells) el.classList.remove("player", "trail");
+      game = null;
+      $("gameStats").hidden = true;
+      $("playBtn").textContent = "▶ Start Game";
+      syncControls();
+    }
+
+    function updateGameStats() {
+      $("moves").textContent = game.moves;
+      $("time").textContent = `${((performance.now() - game.t0) / 1000).toFixed(1)}s`;
+    }
+
+    function movePlayer(dr, dc) {
+      if (!game || running || Math.abs(dr) + Math.abs(dc) !== 1) return;
+      const r = rowOf(game.pos) + dr, c = colOf(game.pos) + dc;
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+      const id = r * cols + c;
+      if (walls[id]) return;
+      cells[game.pos].classList.remove("player");
+      if (game.pos !== start) cells[game.pos].classList.add("trail");
+      cells[id].classList.remove("trail");
+      cells[id].classList.add("player");
+      game.pos = id;
+      game.moves++;
+      updateGameStats();
+      if (id === end) winGame();
+    }
+
+    function winGame() {
+      const { moves, optimal } = game;
+      const secs = (performance.now() - game.t0) / 1000;
+      clearInterval(game.timer);
+      updateGameStats();
+      const stars = moves === optimal ? 3 : moves <= optimal * 1.5 ? 2 : 1;
+      $("winStars").textContent = "⭐".repeat(stars) + "☆".repeat(3 - stars);
+      $("winMessage").textContent = stars === 3
+        ? "Perfect run! You matched the shortest possible path."
+        : stars === 2
+          ? `Nice! Just ${moves - optimal} moves more than the optimal route.`
+          : "You made it! Try again to find a shorter route.";
+      $("winMoves").textContent = moves;
+      $("winOptimal").textContent = optimal;
+      $("winTime").textContent = `${secs.toFixed(1)}s`;
+      $("winModal").hidden = false;
+      setStatus("You win! 🎉");
+    }
+
+    function showOptimalPath() {
+      $("winModal").hidden = true;
+      endGame();
+      animateSearch();
+    }
+
+    const KEYS = {
+      ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1],
+      w: [-1, 0], s: [1, 0], a: [0, -1], d: [0, 1],
+    };
+
+    window.addEventListener("keydown", e => {
+      const dir = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+      if (!dir || !game || !$("winModal").hidden) return;
+      e.preventDefault();
+      movePlayer(...dir);
+    });
+
+    // ---------- Animation engine ----------
+
+    function animate(steps, apply, done) {
+      const myRun = ++runId;
+      let i = 0, budget = 0;
+      setRunning(true);
+      (function frame() {
+        if (myRun !== runId) return;
+        budget += SPEEDS[speedEl.value];
+        while (budget >= 1 && i < steps.length) {
+          apply(steps[i++]);
+          budget--;
+        }
+        if (i >= steps.length) {
+          setRunning(false);
+          done();
+          return;
+        }
+        requestAnimationFrame(frame);
+      })();
+    }
+
+    function stopAnimation() {
+      runId++;
+      setRunning(false);
+    }
+
+    function setRunning(on) {
+      running = on;
+      syncControls();
+    }
+
+    // Maze/search tools are locked during animations and while a game is in progress.
+    function syncControls() {
+      for (const id of ["mazeBtn", "searchBtn", "mazeAlgo", "searchAlgo"]) $(id).disabled = running || !!game;
+      $("playBtn").disabled = running && !game;
+    }
+
+    // ---------- Controls ----------
+
+    $("mazeBtn").addEventListener("click", () => generateMaze());
+    $("searchBtn").addEventListener("click", animateSearch);
+
+    $("playBtn").addEventListener("click", () => {
+      if (game) {
+        endGame();
+        setStatus("Game ended. Click Start Game to play again.");
+      } else {
+        startGame();
+      }
+    });
+
+    $("introStartBtn").addEventListener("click", startGame);
+    $("againBtn").addEventListener("click", startGame);
+    $("showPathBtn").addEventListener("click", showOptimalPath);
+    $("helpBtn").addEventListener("click", () => { $("introModal").hidden = false; });
+    $("exploreBtn").addEventListener("click", () => {
+      $("introModal").hidden = true;
+      setStatus("Explore mode: draw walls, generate a maze, or animate a search.");
+    });
+
+    $("clearPathBtn").addEventListener("click", () => {
+      endGame();
+      stopAnimation();
+      clearSearch();
+      setStatus("Path cleared.");
+    });
+
+    $("clearBtn").addEventListener("click", () => {
+      endGame();
+      stopAnimation();
+      clearSearch();
+      clearWalls();
+      setStatus("Grid cleared. Click and drag to draw walls.");
+    });
+
+    $("searchAlgo").addEventListener("change", () => { if (searched) instantSearch(); });
+
+    const syncSpeedLabel = () => { $("speedLabel").textContent = SPEED_LABELS[speedEl.value]; };
+    speedEl.addEventListener("input", syncSpeedLabel);
+    syncSpeedLabel();
+
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const [r, c] = fitDims();
+        if (r !== rows || c !== cols) {
+          buildGrid();
+          setStatus("Grid resized to fit the window.");
+        }
+      }, 250);
+    });
+
+    buildGrid();
+  </script>
 </body>
 </html>
